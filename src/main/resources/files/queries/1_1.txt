@@ -1,0 +1,18 @@
+--otbor sluchaev po profilakticheskim posesheniam
+select srz_pid, ss.DATE_1, ss.SchetSluchID
+into #prof
+    from iesdb.[IES].T_SCHET_SLUCH as ss with(nolock)
+        inner join iesdb.ies.T_SCHET_ZAP as sz with(nolock) on (sz.SchetZapID = ss.SchetZap)
+            inner join iesdb.ies.T_SCHET as s with(nolock) on (s.SchetID=sz.Schet)
+                    inner join iesdb.ies.T_SCHET_SLUCH_ACCOMPLISHED as ssa with(nolock) on (ss.SchetSluchAccomplished=ssa.SchetSluchAccomplishedID)
+                        where s.[year]=@year and s.[month]<=@month
+                        and s.type_=693 and ssa.oplata=1 and (s.filename like 'HS%' or s.filename like 'HCS%') and ssa.idsp=29 and ssa.usl_ok=3
+                        and (ss.p_cel in ('ea975098-f01d-4598-b160-077477466b68','a50d1688-d156-476b-ac0e-eadc86bdfd59') or ds1 like 'z%')
+
+select (select top 1 nam_mok from iesdb.IES.T_F003_MO t15  with(nolock) where t15.MCOD = convert(varchar(6),fj.lpu)) as nam_mok, CONVERT(integer, count(distinct srz_pid)) as col
+from #prof sd
+    inner join orange.[RPN_online].[dbo].[FinanceJournal] fj on fj.pid=sd.srz_pid and fj.DTSECTION=convert(date,'2019-04-01',127)
+        group by fj.lpu
+            order by fj.lpu
+
+drop table #prof

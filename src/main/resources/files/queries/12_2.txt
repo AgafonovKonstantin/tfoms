@@ -1,0 +1,29 @@
+select distinct srz_pid
+into #allsluch
+	from iesdb.[IES].T_SCHET_SLUCH as ss with(nolock)
+	    inner join iesdb.ies.T_SCHET_ZAP as sz with(nolock) on (sz.SchetZapID = ss.SchetZap)
+	        inner join iesdb.ies.T_SCHET as s with(nolock) on (s.SchetID=sz.Schet)
+	            inner join iesdb.ies.T_SCHET_SLUCH_ACCOMPLISHED as ssa with(nolock) on (ss.SchetSluchAccomplished=ssa.SchetSluchAccomplishedID)
+	                where (s.[year] in (2021) and s.[month]<=6 and ssa.oplata=1 and s.type_=693 and isnull(ssa.usl_ok,3)<>4 and (s.FILENAME like 'HM%' or s.FILENAME like 'HCM%' or s.FILENAME like 'D_M%' or s.FILENAME like 'TM%') )
+		                and datediff(month,sz.dr,ss.date_1)>=216
+		                and P_CEL='a50d1688-d156-476b-ac0e-eadc86bdfd59'
+		                and (ss.ds1 like 'I%' or ss.ds1 like 'J44%' or ss.ds1 like 'E1[01234]%')
+
+select srz_pid
+into #extr_gosp
+	from iesdb.[IES].T_SCHET_SLUCH as ss with(nolock)
+    	inner join iesdb.ies.T_SCHET_ZAP as sz with(nolock) on (sz.SchetZapID = ss.SchetZap)
+	        inner join iesdb.ies.T_SCHET as s with(nolock) on (s.SchetID=sz.Schet)
+	            inner join iesdb.ies.T_SCHET_SLUCH_ACCOMPLISHED as ssa with(nolock) on (ss.SchetSluchAccomplished=ssa.SchetSluchAccomplishedID)
+	                where (s.[year] in (2021) and s.[month]<=6 and ssa.oplata=1 and s.type_=693 and (s.FILENAME like 'HM%' or s.FILENAME like 'HCM%'  or s.FILENAME like 'TM%') )
+	                    and ssa.FOR_POM=1 and ssa.usl_ok=1
+	                    and (ss.ds1 like 'I%' or ss.ds1 like 'J44%' or ss.ds1 like 'E1[01234]%')
+	                    and exists (select top 1 1 from #allsluch a where a.srz_pid=sz.srz_pid)
+
+select (select top 1 nam_mok from [blue\medexp].iesdb.IES.T_F003_MO t15  with(nolock) where t15.MCOD = convert(varchar(6),fj.lpu)) as nam_mok,count(distinct srz_pid) as col
+	from #allsluch d
+	    inner join orange.[RPN_online].[dbo].[FinanceJournal] fj on fj.pid=d.srz_pid and fj.DTSECTION=convert(date,'2021-07-01',127)
+	        group by fj.lpu
+	            order by fj.lpu
+
+drop table #allsluch,#extr_gosp

@@ -1,0 +1,13 @@
+select id, ds
+into #people
+    from  orange.[srz3_00].[dbo].[PEOPLE]
+        where pid is null and month(ds)<=@month and year(ds)=@year
+		    and datediff(month,dr,ds)>=360 and datediff(month,dr,ds)<=839
+
+select (select top 1 nam_mok from iesdb.IES.T_F003_MO t15  with(nolock) where t15.MCOD = convert(varchar(6),fj.lpu)) as nam_mok,count (p.id) as col
+    from #people p
+        inner join orange.[RPN_online].[dbo].[FinanceJournal] fj on fj.pid=p.id and fj.DTSECTION=convert(date,convert(varchar(4),datepart(year,p.ds))+'-'+convert(varchar(2),datepart(month,p.ds))+'-01',127)
+            group by lpu
+                order by lpu
+
+drop table #people--,#smert

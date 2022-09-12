@@ -1,0 +1,28 @@
+select srz_pid
+into #sluchdn
+	from iesdb.[IES].T_SCHET_SLUCH as ss with(nolock)
+		inner join iesdb.ies.T_SCHET_ZAP as sz with(nolock) on (sz.SchetZapID = ss.SchetZap)
+			inner join iesdb.ies.T_SCHET as s with(nolock) on (s.SchetID=sz.Schet)
+				inner join iesdb.ies.T_SCHET_SLUCH_ACCOMPLISHED as ssa with(nolock) on (ss.SchetSluchAccomplished=ssa.SchetSluchAccomplishedID)
+					where (
+						(s.[year] in (2018,2019,2020) and ssa.oplata=1 and s.type_=693 and isnull(ssa.usl_ok,3)<>4 and (s.FILENAME like 'HS%' or s.FILENAME like 'D_S%' or s.FILENAME like 'TS%' or s.FILENAME like 'HCS%') )
+						or
+						(s.[year] in (2021)  and ssa.oplata=1 and s.type_=693 and isnull(ssa.usl_ok,3)<>4 and (s.FILENAME like 'HM%' or s.FILENAME like 'D_M%' or s.FILENAME like 'TM%' or s.FILENAME like 'HCM%') )
+						or
+						(s.[year] in (2022) and s.[month] <= @month and ssa.oplata=1 and s.type_=693 and isnull(ssa.usl_ok,3)<>4 and (s.FILENAME like 'HM%' or s.FILENAME like 'D_M%' or s.FILENAME like 'TM%' or s.FILENAME like 'HCM%') ))
+						and ss.P_CEL='a50d1688-d156-476b-ac0e-eadc86bdfd59'
+						and datediff(month,sz.dr,ss.date_1)>=216
+
+select (select top 1 nam_mok from iesdb.IES.T_F003_MO t15  with(nolock) where t15.MCOD = convert(varchar(6),fj.lpu)) as nam_mok,count (distinct srz_pid) as col
+	from #sluchdn s
+		inner join orange.[srz3_00].[dbo].[PEOPLE] p on p.id=s.srz_pid and ds>=convert(date,CONCAT(@year,'-01-01'), 127) and ds<=convert(date,
+			case
+				when @month < 12 then CONCAT(@year,'-',@month + 1,'-','01')
+				else CONCAT(@year + 1,'-','01','-','01')
+				end
+			,127)
+			inner join orange.[RPN_online].[dbo].[FinanceJournal] fj on fj.pid=s.srz_pid and fj.DTSECTION=convert(date,convert(varchar(4),datepart(year,p.ds))+'-'+convert(varchar(2),datepart(month,p.ds))+'-01',127)
+				group by fj.lpu
+					order by fj.lpu
+
+drop table #sluchdn

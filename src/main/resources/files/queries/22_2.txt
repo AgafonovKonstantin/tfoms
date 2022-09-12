@@ -1,0 +1,44 @@
+select srz_pid,ss.date_1,ss.SchetSluchID
+into #allsluch
+	from iesdb.[IES].T_SCHET_SLUCH as ss with(nolock)
+    	inner join iesdb.ies.T_SCHET_ZAP as sz with(nolock) on (sz.SchetZapID = ss.SchetZap)
+	        inner join iesdb.ies.T_SCHET as s with(nolock) on (s.SchetID=sz.Schet)
+	            inner join iesdb.ies.T_SCHET_SLUCH_ACCOMPLISHED as ssa with(nolock) on (ss.SchetSluchAccomplished=ssa.SchetSluchAccomplishedID)
+	                where ((s.[year] in (2018,2019,2020) and ssa.oplata=1 and s.type_=693 and isnull(ssa.usl_ok,3)<>4 and (s.FILENAME like 'HS%' or s.FILENAME like 'D_S%' or s.FILENAME like 'TS%') )
+		                or
+		                (s.[year] in (2021) and ssa.oplata=1 and s.type_=693 and isnull(ssa.usl_ok,3)<>4 and (s.FILENAME like 'HM%' or s.FILENAME like 'D_M%' or s.FILENAME like 'TM%') ))
+		                and (ss.ds1 like 'E%')
+		                and datediff(month,sz.dr,ss.date_1)<=215
+
+select srz_pid,min(ss.DATE_1) as date_1
+into #min_date
+	from iesdb.[IES].T_SCHET_SLUCH as ss with(nolock)
+    	inner join iesdb.ies.T_SCHET_ZAP as sz with(nolock) on (sz.SchetZapID = ss.SchetZap)
+	        inner join iesdb.ies.T_SCHET as s with(nolock) on (s.SchetID=sz.Schet)
+	            inner join iesdb.ies.T_SCHET_SLUCH_ACCOMPLISHED as ssa with(nolock) on (ss.SchetSluchAccomplished=ssa.SchetSluchAccomplishedID)
+	                where (s.[year] in (2022) and s.[month]<=3 and ssa.oplata=1 and s.type_=693 and isnull(ssa.usl_ok,3)<>4 and (s.FILENAME like 'HM%' or s.FILENAME like 'D_M%' or s.FILENAME like 'TM%') )
+	                    and (ss.ds1 like 'E%')
+		                and datediff(month,sz.dr,ss.date_1)<=215
+	                    and not exists (select top 1 1 from #allsluch a where a.srz_pid=sz.srz_pid)
+	                        group by srz_pid
+
+select srz_pid,min(ss.DATE_1) as date_1
+into #sluch_dn
+	from iesdb.[IES].T_SCHET_SLUCH as ss with(nolock)
+    	inner join iesdb.ies.T_SCHET_ZAP as sz with(nolock) on (sz.SchetZapID = ss.SchetZap)
+	        inner join iesdb.ies.T_SCHET as s with(nolock) on (s.SchetID=sz.Schet)
+	            inner join iesdb.ies.T_SCHET_SLUCH_ACCOMPLISHED as ssa with(nolock) on (ss.SchetSluchAccomplished=ssa.SchetSluchAccomplishedID)
+	                where (s.[year] in (2022) and s.[month]<=3 and ssa.oplata=1 and s.type_=693 and isnull(ssa.usl_ok,3)<>4 and (s.FILENAME like 'HM%' or s.FILENAME like 'D_M%' or s.FILENAME like 'TM%') )
+	                    and (ss.ds1 like 'E%')
+		                and datediff(month,sz.dr,ss.date_1)<=215
+	                    and p_cel='a50d1688-d156-476b-ac0e-eadc86bdfd59'
+	                    and exists (select top 1 1 from #min_date m where m.srz_pid=sz.srz_pid)
+	                        group by srz_pid
+
+select (select top 1 nam_mok from iesdb.IES.T_F003_MO t15  with(nolock) where t15.MCOD = convert(varchar(6),fj.lpu)) as nam_mok,count(distinct srz_pid) as col
+	from #min_date sd
+    	inner join orange.[RPN_online].[dbo].[FinanceJournal] fj on fj.pid=sd.srz_pid and fj.DTSECTION=convert(date,'2022-04-01',127)
+	        group by fj.lpu
+	            order by fj.lpu
+
+drop table #sluch_dn,#allsluch,#min_date
